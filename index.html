@@ -1,47 +1,190 @@
-let preguntas = [];
-let catalogo = [];
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Oposiciones App</title>
 
-async function iniciar() {
-  const res = await fetch('Catalogo.json');
-  catalogo = await res.json();
+  <style>
+    body { font-family: Arial; max-width: 700px; margin: auto; padding: 20px; }
+    button { margin: 5px 0; padding: 10px; width: 100%; }
+    .card { padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
 
-  pantallaInicio();
+<div id="app"></div>
+
+<script>
+/* =========================
+   📦 ESTADO GLOBAL
+========================= */
+
+const state = {
+  view: "login",
+  user: "",
+  modo: "",
+  catalogo: [],
+  preguntas: [],
+  actual: 0,
+  respuestas: []
+};
+
+/* =========================
+   🚀 INICIO
+========================= */
+
+async function init() {
+  const res = await fetch("catalogo.json");
+  state.catalogo = await res.json();
+  render();
 }
 
-function pantallaInicio() {
-  let options = catalogo.map((juego, i) =>
-    `<option value="${i}">${juego.nombre}</option>`
-  ).join("");
+/* =========================
+   🎯 RENDER CENTRAL (CLAVE)
+========================= */
 
-  document.getElementById("app").innerHTML = `
-    <h1>Simulador de Oposición</h1>
+function render() {
+  const app = document.getElementById("app");
 
-    <input id="nombre" placeholder="Escribe tu nombre" />
+  if (state.view === "login") {
+    app.innerHTML = viewLogin();
+  }
 
-    <h3>Selecciona test:</h3>
+  if (state.view === "selector") {
+    app.innerHTML = viewSelector();
+  }
 
-    <select id="juego">
-      ${options}
-    </select>
+  if (state.view === "examen") {
+    app.innerHTML = viewExamen();
+  }
 
-    <br><br>
+  if (state.view === "resultado") {
+    app.innerHTML = viewResultado();
+  }
+}
 
-    <button onclick="empezar()">Empezar</button>
+/* =========================
+   🧾 VISTAS
+========================= */
+
+function viewLogin() {
+  return `
+    <h1>Oposiciones App</h1>
+
+    <input id="user" placeholder="Tu nombre" />
+
+    <button onclick="goSelector()">Continuar</button>
   `;
 }
 
-async function empezar() {
-  const index = document.getElementById("juego").value;
+function viewSelector() {
 
-  const archivo = catalogo[index].archivo;
+  let options = state.catalogo.map((t, i) =>
+    `<option value="${i}">${t.nombre}</option>`
+  ).join("");
 
-  const res = await fetch(archivo);
-  preguntas = await res.json();
+  return `
+    <h2>Hola ${state.user}</h2>
 
-  actual = 0;
-  respuestas = [];
+    <h3>Selecciona test</h3>
 
-  usuario = document.getElementById("nombre").value || "Anónimo";
+    <select id="test">
+      ${options}
+    </select>
 
-  mostrarPregunta();
+    <button onclick="startExam('estudio')">📘 Modo estudio</button>
+    <button onclick="startExam('examen')">🧪 Modo examen</button>
+  `;
 }
+
+function viewExamen() {
+  const p = state.preguntas[state.actual];
+
+  return `
+    <h3>Pregunta ${state.actual + 1} / ${state.preguntas.length}</h3>
+
+    <div class="card">
+      ${p.pregunta}
+    </div>
+
+    ${p.opciones.map((op, i) =>
+      `<button onclick="answer(${i})">${op}</button>`
+    ).join("")}
+  `;
+}
+
+function viewResultado() {
+
+  let correctas = 0;
+
+  state.preguntas.forEach((p, i) => {
+    if (state.respuestas[i] === p.correcta) correctas++;
+  });
+
+  return `
+    <h2>Resultado</h2>
+
+    <p>Usuario: ${state.user}</p>
+    <p>Modo: ${state.modo}</p>
+
+    <p>✔ Correctas: ${correctas}</p>
+    <p>❌ Fallos: ${state.preguntas.length - correctas}</p>
+
+    <p>Nota: ${(10 * correctas / state.preguntas.length).toFixed(2)}</p>
+
+    <button onclick="reset()">Volver</button>
+  `;
+}
+
+/* =========================
+   🎮 ACCIONES
+========================= */
+
+function goSelector() {
+  state.user = document.getElementById("user").value || "Anónimo";
+  state.view = "selector";
+  render();
+}
+
+async function startExam(modo) {
+
+  const index = document.getElementById("test").value;
+  const file = state.catalogo[index].archivo;
+
+  const res = await fetch(file);
+  state.preguntas = await res.json();
+
+  state.modo = modo;
+  state.actual = 0;
+  state.respuestas = [];
+
+  state.view = "examen";
+  render();
+}
+
+function answer(i) {
+  state.respuestas[state.actual] = i;
+  state.actual++;
+
+  if (state.actual >= state.preguntas.length) {
+    state.view = "resultado";
+  }
+
+  render();
+}
+
+function reset() {
+  state.view = "selector";
+  state.actual = 0;
+  state.respuestas = [];
+  render();
+}
+
+/* ========================= */
+
+init();
+</script>
+
+</body>
+</html>
