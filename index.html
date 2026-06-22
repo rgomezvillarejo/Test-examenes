@@ -57,11 +57,12 @@
       margin: 10px 0;
       display: flex;
       align-items: center;
+      gap: 10px;
     }
 
-    .opcion input {
+    .opcion input[type="checkbox"],
+    .opcion input[type="radio"] {
       transform: scale(1.3);
-      margin-right: 12px;
     }
 
     button {
@@ -97,6 +98,8 @@
     const state = {
       user: "",
       modo: "",
+      catalogo: [],
+      juegosSeleccionados: [],
       preguntas: [],
       respuestas: [],
       actual: 0
@@ -107,63 +110,97 @@
     // -----------------------------
     async function cargarCatalogo() {
       const res = await fetch("catalogo.json");
-      return await res.json();
+      state.catalogo = await res.json();
     }
 
     // -----------------------------
-    // VISTA: SELECCIÓN DE JUEGO
+    // PANTALLA 1: NOMBRE
     // -----------------------------
-    function viewSeleccionJuego(catalogo) {
-      const lista = catalogo
-        .map(juego => `
-          <button onclick="seleccionarJuego('${juego.archivo}')">
-            ${juego.nombre}
-          </button>
-        `)
-        .join("");
-
-      return `
-        <h1>Selecciona un juego</h1>
-        ${lista}
-      `;
-    }
-
-    // -----------------------------
-    // CARGAR JUEGO SELECCIONADO
-    // -----------------------------
-    async function seleccionarJuego(archivo) {
-      const res = await fetch(archivo);
-      state.preguntas = await res.json();
-      state.actual = 0;
-      state.respuestas = [];
-      renderInicio();
-    }
-
-    // -----------------------------
-    // VISTA: INICIO (NOMBRE + MODO)
-    // -----------------------------
-    function viewInicio() {
+    function viewNombre() {
       return `
         <h2>Bienvenido</h2>
 
         <label>Tu nombre:</label>
         <input id="user" type="text" placeholder="Escribe tu nombre">
 
+        <button onclick="guardarNombre()">Continuar</button>
+      `;
+    }
+
+    function guardarNombre() {
+      const nombre = document.getElementById("user").value.trim();
+      state.user = nombre || "Anónimo";
+      renderSeleccionJuegos();
+    }
+
+    // -----------------------------
+    // PANTALLA 2: SELECCIÓN DE JUEGOS
+    // -----------------------------
+    function viewSeleccionJuegos() {
+      const lista = state.catalogo
+        .map(juego => `
+          <label class="opcion">
+            <input type="checkbox" value="${juego.archivo}">
+            ${juego.nombre}
+          </label>
+        `)
+        .join("");
+
+      return `
+        <h2>Selecciona los juegos</h2>
+        <p>Puedes elegir uno o varios.</p>
+
+        ${lista}
+
+        <button onclick="guardarJuegos()">Continuar</button>
+      `;
+    }
+
+    function guardarJuegos() {
+      const checks = [...document.querySelectorAll("input[type='checkbox']:checked")];
+
+      if (checks.length === 0) {
+        alert("Debes seleccionar al menos un juego.");
+        return;
+      }
+
+      state.juegosSeleccionados = checks.map(c => c.value);
+
+      renderSeleccionModo();
+    }
+
+    // -----------------------------
+    // PANTALLA 3: SELECCIÓN DE MODO
+    // -----------------------------
+    function viewSeleccionModo() {
+      return `
+        <h2>Selecciona el modo</h2>
+
         <button onclick="iniciar('examen')">Modo Examen</button>
         <button onclick="iniciar('estudio')">Modo Estudio</button>
       `;
     }
 
-    function iniciar(modo) {
-      state.user = document.getElementById("user").value || "Anónimo";
+    // -----------------------------
+    // INICIAR TEST (CARGAR TODOS LOS JSON)
+    // -----------------------------
+    async function iniciar(modo) {
       state.modo = modo;
-      state.actual = 0;
+      state.preguntas = [];
       state.respuestas = [];
+      state.actual = 0;
+
+      for (let archivo of state.juegosSeleccionados) {
+        const res = await fetch(archivo);
+        const preguntas = await res.json();
+        state.preguntas.push(...preguntas);
+      }
+
       renderPregunta();
     }
 
     // -----------------------------
-    // VISTA: PREGUNTA
+    // PANTALLA DE PREGUNTA
     // -----------------------------
     function viewPregunta() {
       const p = state.preguntas[state.actual];
@@ -206,7 +243,7 @@
     }
 
     // -----------------------------
-    // VISTA: RESULTADO
+    // RESULTADO
     // -----------------------------
     function viewResultado() {
 
@@ -249,25 +286,8 @@
     // RENDERIZADO
     // -----------------------------
     async function render() {
-      const catalogo = await cargarCatalogo();
-      document.getElementById("app").innerHTML = viewSeleccionJuego(catalogo);
+      await cargarCatalogo();
+      document.getElementById("app").innerHTML = viewNombre();
     }
 
-    function renderInicio() {
-      document.getElementById("app").innerHTML = viewInicio();
-    }
-
-    function renderPregunta() {
-      document.getElementById("app").innerHTML = viewPregunta();
-    }
-
-    function renderResultado() {
-      document.getElementById("app").innerHTML = viewResultado();
-    }
-
-    // INICIO
-    render();
-  </script>
-
-</body>
-</html>
+    function render
