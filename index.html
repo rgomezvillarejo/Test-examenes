@@ -75,11 +75,14 @@ const state = {
   examenPreguntas: [],
   actual: 0,
 
-  // ahora robusto: objetos con referencia real
   respuestas: [],
 
+  // estudio
   studyAnswered: false,
-  studySelected: null
+  studySelected: null,
+
+  // 🧠 FIX CRÍTICO
+  selectedOption: null
 };
 
 /* =========================
@@ -225,10 +228,13 @@ function startExam(modo, data) {
   state.modo = modo;
   state.actual = 0;
 
-  // 🔥 reset correcto
   state.respuestas = [];
+
   state.studyAnswered = false;
   state.studySelected = null;
+
+  // 🧠 FIX IMPORTANTE
+  state.selectedOption = null;
 
   state.view = "examen";
 
@@ -274,7 +280,7 @@ function viewExamen() {
       return `
         <button
           onclick="selectAnswer(${i})"
-          ${answered && isStudy ? "disabled" : ""}
+          ${isStudy && answered ? "disabled" : ""}
           style="${style}"
         >
           ${op.texto}
@@ -282,7 +288,13 @@ function viewExamen() {
       `;
     }).join("")}
 
-    ${isStudy && answered ? `
+    ${state.modo === "examen" ? `
+      <button onclick="answer()" ${state.selectedOption === null ? "disabled" : ""}>
+        Confirmar respuesta
+      </button>
+    ` : ""}
+
+    ${state.modo === "estudio" && state.studyAnswered ? `
       <button onclick="nextStudyQuestion()">➡️ Siguiente pregunta</button>
     ` : ""}
   `;
@@ -297,7 +309,8 @@ function selectAnswer(i) {
   const p = state.examenPreguntas[state.actual];
 
   if (state.modo === "examen") {
-    answer(p.opciones[i].correcta);
+    state.selectedOption = i;
+    render();
     return;
   }
 
@@ -326,17 +339,21 @@ function nextStudyQuestion() {
 }
 
 /* =========================
-   🧪 ANSWER (EXAMEN)
+   🧪 ANSWER (EXAMEN FIXED)
 ========================= */
 
-function answer(isCorrect) {
+function answer() {
 
-  // 🔥 FIX IMPORTANTE: ya no desincroniza nada
+  const p = state.examenPreguntas[state.actual];
+
+  const isCorrect = p.opciones[state.selectedOption].correcta;
+
   state.respuestas.push({
     preguntaId: state.actual,
     correcta: isCorrect
   });
 
+  state.selectedOption = null;
   state.actual++;
 
   if (state.actual >= state.examenPreguntas.length) {
@@ -347,7 +364,7 @@ function answer(isCorrect) {
 }
 
 /* =========================
-   📊 RESULTADO (CORREGIDO)
+   📊 RESULTADO
 ========================= */
 
 function viewResultado() {
