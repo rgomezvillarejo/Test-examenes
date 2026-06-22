@@ -1,116 +1,47 @@
-🧱 Paso 1: nuevo index.html
-
-Sustituye tu archivo por este (versión base con selector de modo):
-
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Simulador Oposición</title>
-</head>
-<body>
-
-<div id="app"></div>
-
-<script>
 let preguntas = [];
-let actual = 0;
-let respuestas = [];
-
-let usuario = "";
-let modo = ""; // "estudio" o "examen"
+let catalogo = [];
 
 async function iniciar() {
-  const res = await fetch('preguntas.json');
-  preguntas = await res.json();
+  const res = await fetch('catalogo.json');
+  catalogo = await res.json();
 
   pantallaInicio();
 }
 
 function pantallaInicio() {
+  let options = catalogo.map((juego, i) =>
+    `<option value="${i}">${juego.nombre}</option>`
+  ).join("");
+
   document.getElementById("app").innerHTML = `
     <h1>Simulador de Oposición</h1>
 
     <input id="nombre" placeholder="Escribe tu nombre" />
 
-    <h3>Selecciona modo:</h3>
+    <h3>Selecciona test:</h3>
 
-    <button onclick="empezar('estudio')">📘 Modo estudio</button>
-    <button onclick="empezar('examen')">🧪 Modo examen</button>
+    <select id="juego">
+      ${options}
+    </select>
+
+    <br><br>
+
+    <button onclick="empezar()">Empezar</button>
   `;
 }
 
-function empezar(m) {
-  usuario = document.getElementById("nombre").value || "Anónimo";
-  modo = m;
+async function empezar() {
+  const index = document.getElementById("juego").value;
+
+  const archivo = catalogo[index].archivo;
+
+  const res = await fetch(archivo);
+  preguntas = await res.json();
 
   actual = 0;
   respuestas = [];
 
+  usuario = document.getElementById("nombre").value || "Anónimo";
+
   mostrarPregunta();
 }
-
-function mostrarPregunta() {
-  const p = preguntas[actual];
-
-  let html = `
-    <h2>Hola ${usuario}</h2>
-    <h3>Pregunta ${actual + 1} de ${preguntas.length}</h3>
-    <p>${p.pregunta}</p>
-  `;
-
-  p.opciones.forEach((op, i) => {
-    html += `<button onclick="responder(${i})">${op}</button><br><br>`;
-  });
-
-  document.getElementById("app").innerHTML = html;
-}
-
-function responder(i) {
-  const p = preguntas[actual];
-  respuestas[actual] = i;
-
-  if (modo === "estudio") {
-    if (i === p.correcta) {
-      alert("✔ Correcto");
-    } else {
-      alert("❌ Incorrecto");
-    }
-  }
-
-  actual++;
-
-  if (actual < preguntas.length) {
-    mostrarPregunta();
-  } else {
-    mostrarResultado();
-  }
-}
-
-function mostrarResultado() {
-  let correctas = 0;
-
-  preguntas.forEach((p, i) => {
-    if (respuestas[i] === p.correcta) {
-      correctas++;
-    }
-  });
-
-  document.getElementById("app").innerHTML = `
-    <h2>Resultado final</h2>
-    <p>Usuario: ${usuario}</p>
-    <p>Modo: ${modo}</p>
-    <p>Correctas: ${correctas}</p>
-    <p>Fallos: ${preguntas.length - correctas}</p>
-    <p>Nota: ${(10 * correctas / preguntas.length).toFixed(2)}</p>
-
-    <button onclick="pantallaInicio()">Volver al inicio</button>
-  `;
-}
-
-iniciar();
-</script>
-
-</body>
-</html>
