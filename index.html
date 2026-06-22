@@ -98,19 +98,53 @@
       user: "",
       modo: "",
       preguntas: [],
-      examenPreguntas: [],
       respuestas: [],
       actual: 0
     };
 
-    async function cargarPreguntas() {
-      const res = await fetch("preguntas.json");
-      state.preguntas = await res.json();
+    // -----------------------------
+    // CARGAR CATALOGO
+    // -----------------------------
+    async function cargarCatalogo() {
+      const res = await fetch("catalogo.json");
+      return await res.json();
     }
 
+    // -----------------------------
+    // VISTA: SELECCIÓN DE JUEGO
+    // -----------------------------
+    function viewSeleccionJuego(catalogo) {
+      const lista = catalogo
+        .map(juego => `
+          <button onclick="seleccionarJuego('${juego.archivo}')">
+            ${juego.nombre}
+          </button>
+        `)
+        .join("");
+
+      return `
+        <h1>Selecciona un juego</h1>
+        ${lista}
+      `;
+    }
+
+    // -----------------------------
+    // CARGAR JUEGO SELECCIONADO
+    // -----------------------------
+    async function seleccionarJuego(archivo) {
+      const res = await fetch(archivo);
+      state.preguntas = await res.json();
+      state.actual = 0;
+      state.respuestas = [];
+      renderInicio();
+    }
+
+    // -----------------------------
+    // VISTA: INICIO (NOMBRE + MODO)
+    // -----------------------------
     function viewInicio() {
       return `
-        <h1>Test Interactivo</h1>
+        <h2>Bienvenido</h2>
 
         <label>Tu nombre:</label>
         <input id="user" type="text" placeholder="Escribe tu nombre">
@@ -123,28 +157,30 @@
     function iniciar(modo) {
       state.user = document.getElementById("user").value || "Anónimo";
       state.modo = modo;
-      state.examenPreguntas = [...state.preguntas];
-      state.respuestas = [];
       state.actual = 0;
-      render();
+      state.respuestas = [];
+      renderPregunta();
     }
 
+    // -----------------------------
+    // VISTA: PREGUNTA
+    // -----------------------------
     function viewPregunta() {
-      const p = state.examenPreguntas[state.actual];
+      const p = state.preguntas[state.actual];
 
       const opcionesHTML = p.opciones
-        .map((o, i) => `
+        .map((texto, i) => `
           <div class="opcion">
             <input type="radio" name="op" value="${i}">
-            <span>${o.texto}</span>
+            <span>${texto}</span>
           </div>
         `)
         .join("");
 
       return `
-        <h2>Pregunta ${state.actual + 1} / ${state.examenPreguntas.length}</h2>
+        <h2>Pregunta ${state.actual + 1} / ${state.preguntas.length}</h2>
 
-        <p>${p.texto}</p>
+        <p>${p.pregunta}</p>
 
         ${opcionesHTML}
 
@@ -156,19 +192,22 @@
       const seleccion = document.querySelector("input[name='op']:checked");
 
       state.respuestas.push({
-        pregunta: state.examenPreguntas[state.actual],
-        selected: seleccion ? seleccion.value : null
+        pregunta: state.preguntas[state.actual],
+        selected: seleccion ? Number(seleccion.value) : null
       });
 
       state.actual++;
 
-      if (state.actual >= state.examenPreguntas.length) {
+      if (state.actual >= state.preguntas.length) {
         renderResultado();
       } else {
-        render();
+        renderPregunta();
       }
     }
 
+    // -----------------------------
+    // VISTA: RESULTADO
+    // -----------------------------
     function viewResultado() {
 
       if (state.modo === "estudio") {
@@ -182,16 +221,10 @@
       let correctas = 0;
 
       for (let r of state.respuestas) {
-        if (!r || !r.pregunta || !r.pregunta.opciones) continue;
-
-        const opciones = r.pregunta.opciones;
-        const correctaIndex = opciones.findIndex(o => o.correcta === true);
-        const elegidaIndex = Number(r.selected);
-
-        if (elegidaIndex === correctaIndex) correctas++;
+        if (r.selected === r.pregunta.correcta) correctas++;
       }
 
-      const total = state.examenPreguntas.length;
+      const total = state.preguntas.length;
       const fallos = total - correctas;
       const nota = (10 * correctas / total).toFixed(2);
 
@@ -212,21 +245,28 @@
       `;
     }
 
-    function render() {
-      const app = document.getElementById("app");
+    // -----------------------------
+    // RENDERIZADO
+    // -----------------------------
+    async function render() {
+      const catalogo = await cargarCatalogo();
+      document.getElementById("app").innerHTML = viewSeleccionJuego(catalogo);
+    }
 
-      if (state.actual === 0 && state.respuestas.length === 0 && !state.modo) {
-        app.innerHTML = viewInicio();
-      } else {
-        app.innerHTML = viewPregunta();
-      }
+    function renderInicio() {
+      document.getElementById("app").innerHTML = viewInicio();
+    }
+
+    function renderPregunta() {
+      document.getElementById("app").innerHTML = viewPregunta();
     }
 
     function renderResultado() {
       document.getElementById("app").innerHTML = viewResultado();
     }
 
-    cargarPreguntas().then(render);
+    // INICIO
+    render();
   </script>
 
 </body>
