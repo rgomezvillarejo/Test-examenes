@@ -1,0 +1,47 @@
+let preguntas = [];
+let catalogo = [];
+
+async function iniciar() {
+  const res = await fetch('Catalogo.json');
+  catalogo = await res.json();
+
+  pantallaInicio();
+}
+
+function pantallaInicio() {
+  let options = catalogo.map((juego, i) =>
+    `<option value="${i}">${juego.nombre}</option>`
+  ).join("");
+
+  document.getElementById("app").innerHTML = `
+    <h1>Simulador de Oposición</h1>
+
+    <input id="nombre" placeholder="Escribe tu nombre" />
+
+    <h3>Selecciona test:</h3>
+
+    <select id="juego">
+      ${options}
+    </select>
+
+    <br><br>
+
+    <button onclick="empezar()">Empezar</button>
+  `;
+}
+
+async function empezar() {
+  const index = document.getElementById("juego").value;
+
+  const archivo = catalogo[index].archivo;
+
+  const res = await fetch(archivo);
+  preguntas = await res.json();
+
+  actual = 0;
+  respuestas = [];
+
+  usuario = document.getElementById("nombre").value || "Anónimo";
+
+  mostrarPregunta();
+}
