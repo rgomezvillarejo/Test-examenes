@@ -2,7 +2,7 @@ let preguntas = [];
 let catalogo = [];
 
 async function iniciar() {
-  const res = await fetch('catalogo.json');
+  const res = await fetch('Catalogo.json');
   catalogo = await res.json();
 
   pantallaInicio();
