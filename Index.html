@@ -1,12 +1,56 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Oposición</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simulador Oposición</title>
 </head>
 <body>
-    <h1>Mi simulador de oposición</h1>
-    <p>La web funciona correctamente.</p>
+  <h1>Simulador de Oposición</h1>
+
+  <div id="app"></div>
+
+  <script>
+    let preguntas = [];
+    let actual = 0;
+
+    async function cargarPreguntas() {
+      const res = await fetch('preguntas.json');
+      preguntas = await res.json();
+      mostrarPregunta();
+    }
+
+    function mostrarPregunta() {
+      const p = preguntas[actual];
+
+      let html = `<h2>${p.pregunta}</h2>`;
+
+      p.opciones.forEach((op, i) => {
+        html += `<button onclick="responder(${i})">${op}</button><br><br>`;
+      });
+
+      document.getElementById("app").innerHTML = html;
+    }
+
+    function responder(i) {
+      const p = preguntas[actual];
+
+      if (i === p.correcta) {
+        alert("Correcto");
+      } else {
+        alert("Incorrecto");
+      }
+
+      actual++;
+
+      if (actual < preguntas.length) {
+        mostrarPregunta();
+      } else {
+        document.getElementById("app").innerHTML = "<h2>Fin del test</h2>";
+      }
+    }
+
+    cargarPreguntas();
+  </script>
 </body>
 </html>
