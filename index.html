@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Oposiciones App</title>
+  <title>Simulador Oposiciones</title>
 
   <style>
     body {
@@ -22,6 +22,7 @@
 
     input {
       padding: 8px;
+      width: 100%;
       box-sizing: border-box;
     }
 
@@ -64,33 +65,18 @@
 <script>
 
 /* =========================
-   📦 ESTADO GLOBAL
+   📦 ESTADO
 ========================= */
 
 const state = {
   view: "login",
   user: "",
-  modo: "",
+  modo: "examen",
   catalogo: [],
   examenPreguntas: [],
   actual: 0,
-  respuestas: [],
-
-  studyAnswered: false,
-  studySelected: null
+  respuestas: []
 };
-
-/* =========================
-   🔧 UTIL
-========================= */
-
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
 
 /* =========================
    🚀 INIT
@@ -121,10 +107,8 @@ function render() {
 
 function viewLogin() {
   return `
-    <h1>🧠 Oposiciones App</h1>
-
+    <h1>🧠 Simulador Oposiciones</h1>
     <input id="user" placeholder="Tu nombre" />
-
     <button onclick="goSelector()">Continuar</button>
   `;
 }
@@ -146,33 +130,30 @@ function viewSelector() {
     <h2>Hola ${state.user}</h2>
 
     <div class="row">
-      <div class="col-left">🎯 Juego de preguntas</div>
+      <div class="col-left">📚 Juegos de preguntas</div>
       <div class="col-right">${tests}</div>
     </div>
 
     <div class="row">
       <div class="col-left">⚙️ Modo</div>
       <div class="col-right">
-
         <div class="option-row">
-          <input type="radio" name="modo" value="estudio" checked>
+          <input type="radio" name="modo" value="estudio">
           📘 Estudio
         </div>
-
         <div class="option-row">
-          <input type="radio" name="modo" value="examen">
+          <input type="radio" name="modo" value="examen" checked>
           🧪 Examen
         </div>
-
       </div>
     </div>
 
-    <button onclick="startExamFromUI()">➡️ Adelante</button>
+    <button onclick="startExamFromUI()">➡️ Empezar</button>
   `;
 }
 
 /* =========================
-   🚀 START EXAM MULTI JSON
+   🚀 START EXAM
 ========================= */
 
 async function startExamFromUI() {
@@ -180,12 +161,12 @@ async function startExamFromUI() {
   const selected = [...document.querySelectorAll(".test-check:checked")]
     .map(c => parseInt(c.value));
 
-  const modo = document.querySelector('input[name="modo"]:checked').value;
-
   if (selected.length === 0) {
     alert("Selecciona al menos un test");
     return;
   }
+
+  const modo = document.querySelector('input[name="modo"]:checked').value;
 
   let all = [];
 
@@ -200,10 +181,14 @@ async function startExamFromUI() {
 }
 
 /* =========================
-   🧪 START EXAM (FIX PRINCIPAL)
+   🧪 START EXAM
 ========================= */
 
 function startExam(modo, data) {
+
+  state.modo = modo;
+  state.actual = 0;
+  state.respuestas = [];
 
   state.examenPreguntas = data.map(p => {
 
@@ -217,30 +202,33 @@ function startExam(modo, data) {
     return {
       pregunta: p.pregunta,
       opciones,
-      selected: null   // 👈 FIX CLAVE
+      selectedIndex: null
     };
   });
 
-  state.modo = modo;
-  state.actual = 0;
-  state.respuestas = [];
-  state.studyAnswered = false;
-  state.studySelected = null;
-
   state.view = "examen";
-
   render();
 }
 
 /* =========================
-   🧪 EXAMEN VIEW
+   🔀 SHUFFLE
+========================= */
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+/* =========================
+   🧪 VIEW EXAM
 ========================= */
 
 function viewExamen() {
 
   const p = state.examenPreguntas[state.actual];
-  const isStudy = state.modo === "estudio";
-  const answered = state.studyAnswered;
 
   return `
     <h3>Pregunta ${state.actual + 1} / ${state.examenPreguntas.length}</h3>
@@ -249,102 +237,44 @@ function viewExamen() {
       ${p.pregunta}
     </div>
 
-    ${p.opciones.map((op, i) => {
-
-      let style = "";
-
-      if (isStudy && answered) {
-
-        if (state.studySelected === i) {
-          style = op.correcta ? "background:#d4edda" : "background:#f8d7da";
-        }
-
-        if (op.correcta && state.studySelected !== i) {
-          return `
-            <button disabled style="background:#d4edda">
-              👉 ${op.texto}
-            </button>
-          `;
-        }
-      }
-
-      return `
-        <button
-          onclick="selectAnswer(${i})"
-          ${answered && isStudy ? "disabled" : ""}
-          style="${style}"
-        >
-          ${op.texto}
-        </button>
-      `;
-    }).join("")}
+    ${p.opciones.map((op, i) => `
+      <button onclick="selectAnswer(${i})">
+        ${op.texto}
+      </button>
+    `).join("")}
 
     ${state.modo === "examen" ? `
-      <button onclick="answer()" ${p.selected === null ? "disabled" : ""}>
-        Confirmar respuesta
+      <button onclick="answer()" ${p.selectedIndex === null ? "disabled" : ""}>
+        Confirmar
       </button>
-    ` : ""}
-
-    ${state.modo === "estudio" && state.studyAnswered ? `
-      <button onclick="nextStudyQuestion()">➡️ Siguiente pregunta</button>
     ` : ""}
   `;
 }
 
 /* =========================
-   🎯 SELECT ANSWER (FIX)
+   🎯 SELECT ANSWER
 ========================= */
 
 function selectAnswer(i) {
-
   const p = state.examenPreguntas[state.actual];
-
-  if (state.modo === "examen") {
-    p.selected = i;   // 👈 FIX CRÍTICO
-    render();
-    return;
-  }
-
-  state.studySelected = i;
-  state.studyAnswered = true;
-
+  p.selectedIndex = i;
   render();
 }
 
 /* =========================
-   🧪 NEXT STUDY
-========================= */
-
-function nextStudyQuestion() {
-
-  state.studyAnswered = false;
-  state.studySelected = null;
-
-  state.actual++;
-
-  if (state.actual >= state.examenPreguntas.length) {
-    state.view = "resultado";
-  }
-
-  render();
-}
-
-/* =========================
-   🧪 ANSWER (FIX DEFINITIVO)
+   🧪 ANSWER
 ========================= */
 
 function answer() {
 
   const p = state.examenPreguntas[state.actual];
 
-  const isCorrect = p.opciones[p.selected]?.correcta === true;
+  const isCorrect = p.opciones[p.selectedIndex]?.correcta === true;
 
   state.respuestas.push({
-    preguntaId: state.actual,
-    correcta: isCorrect
+    question: p,
+    selectedIndex: p.selectedIndex
   });
-
-  p.selected = null;
 
   state.actual++;
 
@@ -356,39 +286,38 @@ function answer() {
 }
 
 /* =========================
-   📊 RESULTADO
+   📊 RESULTADO (FIX FINAL)
 ========================= */
 
 function viewResultado() {
 
-  const correctas = state.respuestas.filter(r => r.correcta).length;
+  let correctas = 0;
+
+  for (let r of state.respuestas) {
+    if (r.question.opciones[r.selectedIndex]?.correcta) {
+      correctas++;
+    }
+  }
 
   return `
     <h2>📊 Resultado</h2>
-
-    <p>Usuario: ${state.user}</p>
-    <p>Modo: ${state.modo}</p>
 
     <p>✔ Correctas: ${correctas}</p>
     <p>❌ Fallos: ${state.examenPreguntas.length - correctas}</p>
 
     <p>Nota: ${(10 * correctas / state.examenPreguntas.length).toFixed(2)}</p>
 
-    <button onclick="location.reload()">Volver</button>
+    <button onclick="location.reload()">Reiniciar</button>
   `;
 }
 
-/* =========================
-   🔁 NAV
-========================= */
+/* ========================= */
 
 function goSelector() {
   state.user = document.getElementById("user").value || "Anónimo";
   state.view = "selector";
   render();
 }
-
-/* ========================= */
 
 init();
 
