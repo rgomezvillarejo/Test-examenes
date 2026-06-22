@@ -74,15 +74,10 @@ const state = {
   catalogo: [],
   examenPreguntas: [],
   actual: 0,
-
   respuestas: [],
 
-  // estudio
   studyAnswered: false,
-  studySelected: null,
-
-  // 🧠 FIX CRÍTICO
-  selectedOption: null
+  studySelected: null
 };
 
 /* =========================
@@ -205,7 +200,7 @@ async function startExamFromUI() {
 }
 
 /* =========================
-   🧪 START EXAM
+   🧪 START EXAM (FIX PRINCIPAL)
 ========================= */
 
 function startExam(modo, data) {
@@ -221,20 +216,16 @@ function startExam(modo, data) {
 
     return {
       pregunta: p.pregunta,
-      opciones
+      opciones,
+      selected: null   // 👈 FIX CLAVE
     };
   });
 
   state.modo = modo;
   state.actual = 0;
-
   state.respuestas = [];
-
   state.studyAnswered = false;
   state.studySelected = null;
-
-  // 🧠 FIX IMPORTANTE
-  state.selectedOption = null;
 
   state.view = "examen";
 
@@ -280,7 +271,7 @@ function viewExamen() {
       return `
         <button
           onclick="selectAnswer(${i})"
-          ${isStudy && answered ? "disabled" : ""}
+          ${answered && isStudy ? "disabled" : ""}
           style="${style}"
         >
           ${op.texto}
@@ -289,7 +280,7 @@ function viewExamen() {
     }).join("")}
 
     ${state.modo === "examen" ? `
-      <button onclick="answer()" ${state.selectedOption === null ? "disabled" : ""}>
+      <button onclick="answer()" ${p.selected === null ? "disabled" : ""}>
         Confirmar respuesta
       </button>
     ` : ""}
@@ -301,7 +292,7 @@ function viewExamen() {
 }
 
 /* =========================
-   🎯 SELECT ANSWER
+   🎯 SELECT ANSWER (FIX)
 ========================= */
 
 function selectAnswer(i) {
@@ -309,7 +300,7 @@ function selectAnswer(i) {
   const p = state.examenPreguntas[state.actual];
 
   if (state.modo === "examen") {
-    state.selectedOption = i;
+    p.selected = i;   // 👈 FIX CRÍTICO
     render();
     return;
   }
@@ -339,21 +330,22 @@ function nextStudyQuestion() {
 }
 
 /* =========================
-   🧪 ANSWER (EXAMEN FIXED)
+   🧪 ANSWER (FIX DEFINITIVO)
 ========================= */
 
 function answer() {
 
   const p = state.examenPreguntas[state.actual];
 
-  const isCorrect = p.opciones[state.selectedOption].correcta;
+  const isCorrect = p.opciones[p.selected]?.correcta === true;
 
   state.respuestas.push({
     preguntaId: state.actual,
     correcta: isCorrect
   });
 
-  state.selectedOption = null;
+  p.selected = null;
+
   state.actual++;
 
   if (state.actual >= state.examenPreguntas.length) {
