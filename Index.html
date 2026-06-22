@@ -1,3 +1,7 @@
+🧱 Paso 1: nuevo index.html
+
+Sustituye tu archivo por este (versión base con selector de modo):
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -6,51 +10,107 @@
   <title>Simulador Oposición</title>
 </head>
 <body>
-  <h1>Simulador de Oposición</h1>
 
-  <div id="app"></div>
+<div id="app"></div>
 
-  <script>
-    let preguntas = [];
-    let actual = 0;
+<script>
+let preguntas = [];
+let actual = 0;
+let respuestas = [];
 
-    async function cargarPreguntas() {
-      const res = await fetch('preguntas.json');
-      preguntas = await res.json();
-      mostrarPregunta();
+let usuario = "";
+let modo = ""; // "estudio" o "examen"
+
+async function iniciar() {
+  const res = await fetch('preguntas.json');
+  preguntas = await res.json();
+
+  pantallaInicio();
+}
+
+function pantallaInicio() {
+  document.getElementById("app").innerHTML = `
+    <h1>Simulador de Oposición</h1>
+
+    <input id="nombre" placeholder="Escribe tu nombre" />
+
+    <h3>Selecciona modo:</h3>
+
+    <button onclick="empezar('estudio')">📘 Modo estudio</button>
+    <button onclick="empezar('examen')">🧪 Modo examen</button>
+  `;
+}
+
+function empezar(m) {
+  usuario = document.getElementById("nombre").value || "Anónimo";
+  modo = m;
+
+  actual = 0;
+  respuestas = [];
+
+  mostrarPregunta();
+}
+
+function mostrarPregunta() {
+  const p = preguntas[actual];
+
+  let html = `
+    <h2>Hola ${usuario}</h2>
+    <h3>Pregunta ${actual + 1} de ${preguntas.length}</h3>
+    <p>${p.pregunta}</p>
+  `;
+
+  p.opciones.forEach((op, i) => {
+    html += `<button onclick="responder(${i})">${op}</button><br><br>`;
+  });
+
+  document.getElementById("app").innerHTML = html;
+}
+
+function responder(i) {
+  const p = preguntas[actual];
+  respuestas[actual] = i;
+
+  if (modo === "estudio") {
+    if (i === p.correcta) {
+      alert("✔ Correcto");
+    } else {
+      alert("❌ Incorrecto");
     }
+  }
 
-    function mostrarPregunta() {
-      const p = preguntas[actual];
+  actual++;
 
-      let html = `<h2>${p.pregunta}</h2>`;
+  if (actual < preguntas.length) {
+    mostrarPregunta();
+  } else {
+    mostrarResultado();
+  }
+}
 
-      p.opciones.forEach((op, i) => {
-        html += `<button onclick="responder(${i})">${op}</button><br><br>`;
-      });
+function mostrarResultado() {
+  let correctas = 0;
 
-      document.getElementById("app").innerHTML = html;
+  preguntas.forEach((p, i) => {
+    if (respuestas[i] === p.correcta) {
+      correctas++;
     }
+  });
 
-    function responder(i) {
-      const p = preguntas[actual];
+  document.getElementById("app").innerHTML = `
+    <h2>Resultado final</h2>
+    <p>Usuario: ${usuario}</p>
+    <p>Modo: ${modo}</p>
+    <p>Correctas: ${correctas}</p>
+    <p>Fallos: ${preguntas.length - correctas}</p>
+    <p>Nota: ${(10 * correctas / preguntas.length).toFixed(2)}</p>
 
-      if (i === p.correcta) {
-        alert("Correcto");
-      } else {
-        alert("Incorrecto");
-      }
+    <button onclick="pantallaInicio()">Volver al inicio</button>
+  `;
+}
 
-      actual++;
+iniciar();
+</script>
 
-      if (actual < preguntas.length) {
-        mostrarPregunta();
-      } else {
-        document.getElementById("app").innerHTML = "<h2>Fin del test</h2>";
-      }
-    }
-
-    cargarPreguntas();
-  </script>
 </body>
 </html>
