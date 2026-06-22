@@ -1,327 +1,47 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Simulador Oposiciones</title>
-
+  <meta charset="UTF-8">
+  <title>Test de Examen</title>
   <style>
-    body {
-      font-family: Arial;
-      max-width: 800px;
-      margin: auto;
-      padding: 20px;
-    }
-
-    button {
-      margin-top: 10px;
-      padding: 10px;
-      width: 100%;
-      cursor: pointer;
-    }
-
-    input {
-      padding: 8px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    .card {
-      padding: 15px;
-      border: 1px solid #ddd;
-      margin-bottom: 10px;
-      border-radius: 6px;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
-      margin-bottom: 15px;
-    }
-
-    .col-left {
-      flex: 1;
-      font-weight: bold;
-    }
-
-    .col-right {
-      flex: 2;
-    }
-
-    .option-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
+    body { font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
+    .opcion { margin: 8px 0; }
+    button { margin-top: 20px; padding: 10px 20px; }
   </style>
 </head>
 
 <body>
 
-<div id="app"></div>
+  <h1>Test interactivo</h1>
 
-<script>
+  <div id="app"></div>
 
-/* =========================
-   📦 ESTADO
-========================= */
-
-const state = {
-  view: "login",
-  user: "",
-  modo: "examen",
-  catalogo: [],
-  examenPreguntas: [],
-  actual: 0,
-  respuestas: []
-};
-
-/* =========================
-   🚀 INIT
-========================= */
-
-async function init() {
-  const res = await fetch("catalogo.json");
-  state.catalogo = await res.json();
-  render();
-}
-
-/* =========================
-   🎯 RENDER
-========================= */
-
-function render() {
-  const app = document.getElementById("app");
-
-  if (state.view === "login") app.innerHTML = viewLogin();
-  if (state.view === "selector") app.innerHTML = viewSelector();
-  if (state.view === "examen") app.innerHTML = viewExamen();
-  if (state.view === "resultado") app.innerHTML = viewResultado();
-}
-
-/* =========================
-   🧾 LOGIN
-========================= */
-
-function viewLogin() {
-  return `
-    <h1>🧠 Simulador Oposiciones</h1>
-    <input id="user" placeholder="Tu nombre" />
-    <button onclick="goSelector()">Continuar</button>
-  `;
-}
-
-/* =========================
-   ⚙️ SELECTOR
-========================= */
-
-function viewSelector() {
-
-  let tests = state.catalogo.map((t, i) => `
-    <div class="option-row">
-      <input type="checkbox" class="test-check" value="${i}">
-      <span>${t.nombre}</span>
-    </div>
-  `).join("");
-
-  return `
-    <h2>Hola ${state.user}</h2>
-
-    <div class="row">
-      <div class="col-left">📚 Juegos de preguntas</div>
-      <div class="col-right">${tests}</div>
-    </div>
-
-    <div class="row">
-      <div class="col-left">⚙️ Modo</div>
-      <div class="col-right">
-        <div class="option-row">
-          <input type="radio" name="modo" value="estudio">
-          📘 Estudio
-        </div>
-        <div class="option-row">
-          <input type="radio" name="modo" value="examen" checked>
-          🧪 Examen
-        </div>
-      </div>
-    </div>
-
-    <button onclick="startExamFromUI()">➡️ Empezar</button>
-  `;
-}
-
-/* =========================
-   🚀 START EXAM
-========================= */
-
-async function startExamFromUI() {
-
-  const selected = [...document.querySelectorAll(".test-check:checked")]
-    .map(c => parseInt(c.value));
-
-  if (selected.length === 0) {
-    alert("Selecciona al menos un test");
-    return;
-  }
-
-  const modo = document.querySelector('input[name="modo"]:checked').value;
-
-  let all = [];
-
-  for (let i of selected) {
-    const file = state.catalogo[i].archivo;
-    const res = await fetch(file);
-    const data = await res.json();
-    all = all.concat(data);
-  }
-
-  startExam(modo, all);
-}
-
-/* =========================
-   🧪 START EXAM
-========================= */
-
-function startExam(modo, data) {
-
-  state.modo = modo;
-  state.actual = 0;
-  state.respuestas = [];
-
-  state.examenPreguntas = data.map(p => {
-
-    let opciones = p.opciones.map((op, i) => ({
-      texto: op,
-      correcta: i === p.correcta
-    }));
-
-    shuffle(opciones);
-
-    return {
-      pregunta: p.pregunta,
-      opciones,
-      selectedIndex: null
+  <script>
+    // -----------------------------
+    // ESTADO GLOBAL
+    // -----------------------------
+    const state = {
+      user: "",
+      modo: "",
+      preguntas: [],
+      examenPreguntas: [],
+      respuestas: [],
+      actual: 0
     };
-  });
 
-  state.view = "examen";
-  render();
-}
-
-/* =========================
-   🔀 SHUFFLE
-========================= */
-
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
-/* =========================
-   🧪 VIEW EXAM
-========================= */
-
-function viewExamen() {
-
-  const p = state.examenPreguntas[state.actual];
-
-  return `
-    <h3>Pregunta ${state.actual + 1} / ${state.examenPreguntas.length}</h3>
-
-    <div class="card">
-      ${p.pregunta}
-    </div>
-
-    ${p.opciones.map((op, i) => `
-      <button onclick="selectAnswer(${i})">
-        ${op.texto}
-      </button>
-    `).join("")}
-
-    ${state.modo === "examen" ? `
-      <button onclick="answer()" ${p.selectedIndex === null ? "disabled" : ""}>
-        Confirmar
-      </button>
-    ` : ""}
-  `;
-}
-
-/* =========================
-   🎯 SELECT ANSWER
-========================= */
-
-function selectAnswer(i) {
-  const p = state.examenPreguntas[state.actual];
-  p.selectedIndex = i;
-  render();
-}
-
-/* =========================
-   🧪 ANSWER
-========================= */
-
-function answer() {
-
-  const p = state.examenPreguntas[state.actual];
-
-  const isCorrect = p.opciones[p.selectedIndex]?.correcta === true;
-
-  state.respuestas.push({
-    question: p,
-    selectedIndex: p.selectedIndex
-  });
-
-  state.actual++;
-
-  if (state.actual >= state.examenPreguntas.length) {
-    state.view = "resultado";
-  }
-
-  render();
-}
-
-/* =========================
-   📊 RESULTADO (FIX FINAL)
-========================= */
-
-function viewResultado() {
-
-  let correctas = 0;
-
-  for (let r of state.respuestas) {
-    if (r.question.opciones[r.selectedIndex]?.correcta) {
-      correctas++;
+    // -----------------------------
+    // CARGAR JSON DE PREGUNTAS
+    // -----------------------------
+    async function cargarPreguntas() {
+      const res = await fetch("preguntas.json");
+      state.preguntas = await res.json();
     }
-  }
 
-  return `
-    <h2>📊 Resultado</h2>
+    // -----------------------------
+    // INICIO
+    // -----------------------------
+    function viewInicio() {
+      return `
+        <h2>Bienvenido</h2>
 
-    <p>✔ Correctas: ${correctas}</p>
-    <p>❌ Fallos: ${state.examenPreguntas.length - correctas}</p>
-
-    <p>Nota: ${(10 * correctas / state.examenPreguntas.length).toFixed(2)}</p>
-
-    <button onclick="location.reload()">Reiniciar</button>
-  `;
-}
-
-/* ========================= */
-
-function goSelector() {
-  state.user = document.getElementById("user").value || "Anónimo";
-  state.view = "selector";
-  render();
-}
-
-init();
-
-</script>
-
-</body>
-</html>
+        <label>Tu nombre:</label>
