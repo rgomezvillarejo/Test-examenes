@@ -22,7 +22,6 @@
 
     select, input {
       padding: 8px;
-      width: 100%;
       box-sizing: border-box;
     }
 
@@ -31,6 +30,30 @@
       border: 1px solid #ddd;
       margin-bottom: 10px;
       border-radius: 6px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 20px;
+    }
+
+    .col-left {
+      flex: 1;
+      font-weight: bold;
+    }
+
+    .col-right {
+      flex: 2;
+    }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
     }
   </style>
 </head>
@@ -51,7 +74,7 @@ const state = {
   modo: "",
   catalogo: [],
   preguntas: [],
-  examenPreguntas: [],   // 👈 examen congelado
+  examenPreguntas: [],
   actual: 0,
   respuestas: []
 };
@@ -73,54 +96,31 @@ function shuffle(array) {
 ========================= */
 
 async function init() {
-  try {
-    const res = await fetch("catalogo.json");
-
-    if (!res.ok) throw new Error("No se pudo cargar catalogo.json");
-
-    state.catalogo = await res.json();
-
-    render();
-
-  } catch (e) {
-    document.getElementById("app").innerHTML = `
-      <h2>❌ Error cargando catálogo</h2>
-      <p>${e.message}</p>
-    `;
-  }
+  const res = await fetch("catalogo.json");
+  state.catalogo = await res.json();
+  render();
 }
 
 /* =========================
-   🎯 RENDER CENTRAL
+   🎯 RENDER
 ========================= */
 
 function render() {
   const app = document.getElementById("app");
 
-  if (state.view === "login") {
-    app.innerHTML = viewLogin();
-  }
-
-  if (state.view === "selector") {
-    app.innerHTML = viewSelector();
-  }
-
-  if (state.view === "examen") {
-    app.innerHTML = viewExamen();
-  }
-
-  if (state.view === "resultado") {
-    app.innerHTML = viewResultado();
-  }
+  if (state.view === "login") app.innerHTML = viewLogin();
+  if (state.view === "selector") app.innerHTML = viewSelector();
+  if (state.view === "examen") app.innerHTML = viewExamen();
+  if (state.view === "resultado") app.innerHTML = viewResultado();
 }
 
 /* =========================
-   🧾 VISTAS
+   🧾 LOGIN
 ========================= */
 
 function viewLogin() {
   return `
-    <h1>Oposiciones App</h1>
+    <h1>🧠 Oposiciones App</h1>
 
     <input id="user" placeholder="Tu nombre" />
 
@@ -128,41 +128,46 @@ function viewLogin() {
   `;
 }
 
+/* =========================
+   ⚙️ SELECTOR NUEVO
+========================= */
+
 function viewSelector() {
 
-  let options = state.catalogo.map((t, i) =>
-    `<option value="${i}">${t.nombre}</option>`
-  ).join("");
+  let tests = state.catalogo.map((t, i) => `
+    <div class="option-row">
+      <input type="checkbox" value="${i}" class="test-check">
+      <span>${t.nombre}</span>
+    </div>
+  `).join("");
 
   return `
     <h2>Hola ${state.user}</h2>
 
-    <div style="display:flex; gap:20px; align-items:flex-start;">
+    <!-- JUEGO DE PREGUNTAS -->
+    <div class="row">
+      <div class="col-left">🎯 Juego de preguntas</div>
 
-      <div style="flex:1;">
-        <h3>🎯 Juego de preguntas</h3>
-
-        <select id="test">
-          ${options}
-        </select>
+      <div class="col-right">
+        ${tests}
       </div>
+    </div>
 
-      <div style="flex:1;">
-        <h3>⚙️ Modo</h3>
+    <!-- MODO -->
+    <div class="row">
+      <div class="col-left">⚙️ Modo</div>
 
-        <label>
+      <div class="col-right">
+        <div class="option-row">
           <input type="radio" name="modo" value="estudio" checked>
           📘 Estudio
-        </label>
+        </div>
 
-        <br><br>
-
-        <label>
+        <div class="option-row">
           <input type="radio" name="modo" value="examen">
           🧪 Examen
-        </label>
+        </div>
       </div>
-
     </div>
 
     <button onclick="startExamFromUI()">
@@ -170,6 +175,69 @@ function viewSelector() {
     </button>
   `;
 }
+
+/* =========================
+   🧠 START EXAM MULTI-JSON
+========================= */
+
+async function startExamFromUI() {
+
+  const selected = [...document.querySelectorAll(".test-check:checked")]
+    .map(c => parseInt(c.value));
+
+  const modo = document.querySelector('input[name="modo"]:checked').value;
+
+  if (selected.length === 0) {
+    alert("Selecciona al menos un juego de preguntas");
+    return;
+  }
+
+  let all = [];
+
+  for (let i of selected) {
+    const file = state.catalogo[i].archivo;
+
+    const res = await fetch(file);
+    const data = await res.json();
+
+    all = all.concat(data);
+  }
+
+  startExam(modo, all);
+}
+
+/* =========================
+   🧪 START EXAM
+========================= */
+
+function startExam(modo, data) {
+
+  state.examenPreguntas = data.map(p => {
+
+    let opciones = p.opciones.map((op, i) => ({
+      texto: op,
+      correcta: i === p.correcta
+    }));
+
+    shuffle(opciones);
+
+    return {
+      pregunta: p.pregunta,
+      opciones
+    };
+  });
+
+  state.modo = modo;
+  state.actual = 0;
+  state.respuestas = [];
+  state.view = "examen";
+
+  render();
+}
+
+/* =========================
+   🧪 EXAMEN
+========================= */
 
 function viewExamen() {
 
@@ -190,108 +258,13 @@ function viewExamen() {
   `;
 }
 
-function viewResultado() {
-
-  let correctas = 0;
-
-  state.respuestas.forEach(r => {
-    if (r === 1) correctas++;
-  });
-
-  return `
-    <h2>Resultado</h2>
-
-    <p>Usuario: ${state.user}</p>
-    <p>Modo: ${state.modo}</p>
-
-    <p>✔ Correctas: ${correctas}</p>
-    <p>❌ Fallos: ${state.examenPreguntas.length - correctas}</p>
-
-    <p>Nota: ${(10 * correctas / state.examenPreguntas.length).toFixed(2)}</p>
-
-    <button onclick="reset()">Volver al inicio</button>
-  `;
-}
-
-/* =========================
-   🎮 ACCIONES
-========================= */
-
-function goSelector() {
-  state.user = document.getElementById("user").value || "Anónimo";
-  state.view = "selector";
-  render();
-}
-
-function startExamFromUI() {
-
-  const index = document.getElementById("test").value;
-
-  const modo = document.querySelector('input[name="modo"]:checked').value;
-
-  startExam(modo, index);
-}
-
-/* =========================
-   🧪 START EXAM (CONGELADO)
-========================= */
-
-async function startExam(modo, index) {
-
-  const file = state.catalogo[index].archivo;
-
-  try {
-    const res = await fetch(file);
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const data = await res.json();
-
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("JSON vacío o mal formado");
-    }
-
-    // 🧠 congelamos examen
-    state.examenPreguntas = data.map(p => {
-
-      let opciones = p.opciones.map((op, i) => ({
-        texto: op,
-        correcta: i === p.correcta
-      }));
-
-      shuffle(opciones);
-
-      return {
-        pregunta: p.pregunta,
-        opciones
-      };
-    });
-
-    state.modo = modo;
-    state.actual = 0;
-    state.respuestas = [];
-    state.view = "examen";
-
-    render();
-
-  } catch (e) {
-    document.getElementById("app").innerHTML = `
-      <h2>❌ Error cargando test</h2>
-      <p><b>Archivo:</b> ${file}</p>
-      <p style="color:red;">${e.message}</p>
-
-      <button onclick="reset()">Volver</button>
-    `;
-  }
-}
-
 /* =========================
    🎯 RESPUESTA
 ========================= */
 
-function answer(isCorrect) {
+function answer(ok) {
 
-  state.respuestas[state.actual] = isCorrect;
+  state.respuestas[state.actual] = ok;
 
   state.actual++;
 
@@ -303,13 +276,35 @@ function answer(isCorrect) {
 }
 
 /* =========================
-   🔁 RESET
+   📊 RESULTADO
 ========================= */
 
-function reset() {
+function viewResultado() {
+
+  let correctas = state.respuestas.filter(r => r === 1).length;
+
+  return `
+    <h2>📊 Resultado</h2>
+
+    <p>Usuario: ${state.user}</p>
+    <p>Modo: ${state.modo}</p>
+
+    <p>✔ Correctas: ${correctas}</p>
+    <p>❌ Fallos: ${state.examenPreguntas.length - correctas}</p>
+
+    <p>Nota: ${(10 * correctas / state.examenPreguntas.length).toFixed(2)}</p>
+
+    <button onclick="location.reload()">Volver</button>
+  `;
+}
+
+/* =========================
+   🔁 NAV
+========================= */
+
+function goSelector() {
+  state.user = document.getElementById("user").value || "Anónimo";
   state.view = "selector";
-  state.actual = 0;
-  state.respuestas = [];
   render();
 }
 
