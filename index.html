@@ -51,9 +51,22 @@ const state = {
   modo: "",
   catalogo: [],
   preguntas: [],
+  examenPreguntas: [],   // 👈 examen congelado
   actual: 0,
   respuestas: []
 };
+
+/* =========================
+   🔧 UTILIDADES
+========================= */
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
 /* =========================
    🚀 INIT
@@ -63,9 +76,7 @@ async function init() {
   try {
     const res = await fetch("catalogo.json");
 
-    if (!res.ok) {
-      throw new Error("No se pudo cargar catalogo.json");
-    }
+    if (!res.ok) throw new Error("No se pudo cargar catalogo.json");
 
     state.catalogo = await res.json();
 
@@ -162,17 +173,19 @@ function viewSelector() {
 
 function viewExamen() {
 
-  const p = state.preguntas[state.actual];
+  const p = state.examenPreguntas[state.actual];
 
   return `
-    <h3>Pregunta ${state.actual + 1} / ${state.preguntas.length}</h3>
+    <h3>Pregunta ${state.actual + 1} / ${state.examenPreguntas.length}</h3>
 
     <div class="card">
       ${p.pregunta}
     </div>
 
-    ${p.opciones.map((op, i) =>
-      `<button onclick="answer(${i})">${op}</button>`
+    ${p.opciones.map(op =>
+      `<button onclick="answer(${op.correcta ? 1 : 0})">
+        ${op.texto}
+      </button>`
     ).join("")}
   `;
 }
@@ -181,8 +194,8 @@ function viewResultado() {
 
   let correctas = 0;
 
-  state.preguntas.forEach((p, i) => {
-    if (state.respuestas[i] === p.correcta) correctas++;
+  state.respuestas.forEach(r => {
+    if (r === 1) correctas++;
   });
 
   return `
@@ -192,9 +205,9 @@ function viewResultado() {
     <p>Modo: ${state.modo}</p>
 
     <p>✔ Correctas: ${correctas}</p>
-    <p>❌ Fallos: ${state.preguntas.length - correctas}</p>
+    <p>❌ Fallos: ${state.examenPreguntas.length - correctas}</p>
 
-    <p>Nota: ${(10 * correctas / state.preguntas.length).toFixed(2)}</p>
+    <p>Nota: ${(10 * correctas / state.examenPreguntas.length).toFixed(2)}</p>
 
     <button onclick="reset()">Volver al inicio</button>
   `;
@@ -213,13 +226,14 @@ function goSelector() {
 function startExamFromUI() {
 
   const index = document.getElementById("test").value;
+
   const modo = document.querySelector('input[name="modo"]:checked').value;
 
   startExam(modo, index);
 }
 
 /* =========================
-   🧠 START EXAM + VALIDACIÓN
+   🧪 START EXAM (CONGELADO)
 ========================= */
 
 async function startExam(modo, index) {
@@ -229,9 +243,7 @@ async function startExam(modo, index) {
   try {
     const res = await fetch(file);
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
 
@@ -239,7 +251,22 @@ async function startExam(modo, index) {
       throw new Error("JSON vacío o mal formado");
     }
 
-    state.preguntas = data;
+    // 🧠 congelamos examen
+    state.examenPreguntas = data.map(p => {
+
+      let opciones = p.opciones.map((op, i) => ({
+        texto: op,
+        correcta: i === p.correcta
+      }));
+
+      shuffle(opciones);
+
+      return {
+        pregunta: p.pregunta,
+        opciones
+      };
+    });
+
     state.modo = modo;
     state.actual = 0;
     state.respuestas = [];
@@ -262,11 +289,13 @@ async function startExam(modo, index) {
    🎯 RESPUESTA
 ========================= */
 
-function answer(i) {
-  state.respuestas[state.actual] = i;
+function answer(isCorrect) {
+
+  state.respuestas[state.actual] = isCorrect;
+
   state.actual++;
 
-  if (state.actual >= state.preguntas.length) {
+  if (state.actual >= state.examenPreguntas.length) {
     state.view = "resultado";
   }
 
