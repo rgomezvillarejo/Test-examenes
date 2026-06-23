@@ -293,10 +293,57 @@
       }
     }
 
+    /* ---------------------------------------------------
+       SISTEMA DE PROGRESO Y ESTADÍSTICAS
+    --------------------------------------------------- */
+
+    function guardarResultadoTest(resultado) {
+      const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+      historial.push(resultado);
+      localStorage.setItem("historialTests", JSON.stringify(historial));
+    }
+
+    function actualizarEstadisticasPreguntas() {
+      let stats = JSON.parse(localStorage.getItem("estadisticasPreguntas") || "{}");
+
+      state.preguntas.forEach((p, i) => {
+        const id = p.pregunta; // clave única basada en el enunciado
+
+        if (!stats[id]) {
+          stats[id] = { veces: 0, aciertos: 0, fallos: 0 };
+        }
+
+        stats[id].veces++;
+
+        if (state.respuestas[i] === p.correcta) {
+          stats[id].aciertos++;
+        } else {
+          stats[id].fallos++;
+        }
+      });
+
+      localStorage.setItem("estadisticasPreguntas", JSON.stringify(stats));
+    }
+
+    /* ---------------------------------------------------
+       RESULTADOS
+    --------------------------------------------------- */
+
     function renderResultados() {
       const total = state.preguntas.length;
       const aciertos = state.respuestas.filter((r, i) => r === state.preguntas[i].correcta).length;
       const porcentaje = ((aciertos / total) * 100).toFixed(2);
+
+      guardarResultadoTest({
+        fecha: new Date().toISOString(),
+        usuario: state.user,
+        modo: state.modo,
+        total,
+        aciertos,
+        porcentaje
+      });
+
+      actualizarEstadisticasPreguntas();
 
       document.getElementById("app").innerHTML = `
         <h2>Resultados</h2>
@@ -308,6 +355,10 @@
         <button onclick="location.reload()">Reiniciar</button>
       `;
     }
+
+    /* ---------------------------------------------------
+       RENDER PRINCIPAL
+    --------------------------------------------------- */
 
     function render() {
       if (!state.user) {
