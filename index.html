@@ -63,19 +63,14 @@
       position: relative;
     }
 
-	.opcion.correcta {
-	background: rgba(46, 204, 113, 0.25);
-	border: 2px solid var(--ok);
-	}
+    .opcion.correcta {
+      background: rgba(46, 204, 113, 0.25);
+      border: 2px solid var(--ok);
+    }
 
-	.opcion.fallada {
-	background: rgba(231, 76, 60, 0.25);
-	border: 2px solid var(--fail);
-	}
-
-    .icono {
-      font-size: 20px;
-      margin-left: auto;
+    .opcion.fallada {
+      background: rgba(231, 76, 60, 0.25);
+      border: 2px solid var(--fail);
     }
 
     button {
@@ -117,14 +112,9 @@
     };
 
     function mezclarOpciones(p) {
-      // 1. Guardar el texto de la opción correcta antes de mezclar
-	const textoCorrecto = p.opciones[p.correcta];
-
-	// 2. Mezclar las opciones
-	p.opciones = [...p.opciones].sort(() => Math.random() - 0.5);
-
-	// 3. Recalcular el índice de la opción correcta en el nuevo array
-	p.correcta = p.opciones.findIndex(o => o === textoCorrecto);  
+      const textoCorrecto = p.opciones[p.correcta];
+      p.opciones = [...p.opciones].sort(() => Math.random() - 0.5);
+      p.correcta = p.opciones.findIndex(o => o === textoCorrecto);
     }
 
     async function cargarCatalogo() {
@@ -182,11 +172,7 @@
 
     function seleccionarModo(m) {
       state.modo = m;
-      if (m === "estudio") {
-        cargarPreguntasParaConfig();
-      } else {
-        cargarPreguntasParaConfig();
-      }
+      cargarPreguntasParaConfig();
     }
 
     async function cargarPreguntasParaConfig() {
@@ -203,64 +189,58 @@
       renderConfigPreguntas();
     }
 
-function renderConfigPreguntas() {
-  // -------------------------
-  // CONFIGURACIÓN MODO ESTUDIO
-  // -------------------------
-  if (state.modo === "estudio") {
-    document.getElementById("app").innerHTML = `
-      <h2>Modo Estudio</h2>
-      <p>Total preguntas: ${state.totalPreguntasDisponibles}</p>
+    function renderConfigPreguntas() {
 
-      <div class="opcion">
-        <input type="radio" name="tipoEstudio" id="lineal" checked>
-        <label for="lineal">Recorrido lineal (orden original)</label>
-      </div>
+      if (state.modo === "estudio") {
+        document.getElementById("app").innerHTML = `
+          <h2>Modo Estudio</h2>
+          <p>Total preguntas: ${state.totalPreguntasDisponibles}</p>
 
-      <div class="opcion">
-        <input type="radio" name="tipoEstudio" id="aleatorio">
-        <label for="aleatorio">Recorrido aleatorio</label>
-      </div>
+          <div class="opcion">
+            <input type="radio" name="tipoEstudio" id="lineal" checked>
+            <label for="lineal">Recorrido lineal (orden original)</label>
+          </div>
 
-      <button onclick="iniciarEstudio()">Comenzar</button>
-    `;
-    return;
-  }
+          <div class="opcion">
+            <input type="radio" name="tipoEstudio" id="aleatorio">
+            <label for="aleatorio">Recorrido aleatorio</label>
+          </div>
 
-  // -------------------------
-  // CONFIGURACIÓN MODO EXAMEN
-  // -------------------------
-  document.getElementById("app").innerHTML = `
-    <h2>Modo Examen</h2>
-    <p>Total disponibles: ${state.totalPreguntasDisponibles}</p>
+          <button onclick="iniciarEstudio()">Comenzar</button>
+        `;
+        return;
+      }
 
-    <input id="numPreg" type="number" 
-           min="1" 
-           max="${state.totalPreguntasDisponibles}" 
-           placeholder="Número de preguntas">
+      document.getElementById("app").innerHTML = `
+        <h2>Modo Examen</h2>
+        <p>Total disponibles: ${state.totalPreguntasDisponibles}</p>
 
-    <button onclick="iniciarExamen()">Comenzar</button>
-  `;
-}
+        <input id="numPreg" type="number" 
+               min="1" 
+               max="${state.totalPreguntasDisponibles}" 
+               placeholder="Número de preguntas">
 
+        <button onclick="iniciarExamen()">Comenzar</button>
+      `;
+    }
 
+    function iniciarEstudio() {
+      const esAleatorio = document.getElementById("aleatorio").checked;
+      state.estudioModoAleatorio = esAleatorio;
 
-function iniciarEstudio() {
-  const esAleatorio = document.getElementById("aleatorio").checked;
-  state.estudioModoAleatorio = esAleatorio;
+      if (esAleatorio) {
+        state.preguntas = state.preguntas.sort(() => Math.random() - 0.5);
+      }
 
-  if (esAleatorio) {
-    state.preguntas = state.preguntas.sort(() => Math.random() - 0.5);
-  }
-
-  state.actual = 0;
-  state.mostrarCorreccion = false;
-  render();
-}
+      state.actual = 0;
+      state.mostrarCorreccion = false;
+      render();
+    }
 
     function iniciarExamen() {
       const n = parseInt(document.getElementById("numPreg").value);
       if (!n || n < 1 || n > state.totalPreguntasDisponibles) return;
+
       state.numPreguntasElegidas = n;
       state.preguntas = state.preguntas.sort(() => Math.random() - 0.5).slice(0, n);
       state.actual = 0;
@@ -305,6 +285,7 @@ function iniciarEstudio() {
     function siguiente() {
       state.actual++;
       state.mostrarCorreccion = false;
+
       if (state.actual >= state.preguntas.length) {
         renderResultados();
       } else {
@@ -313,10 +294,17 @@ function iniciarEstudio() {
     }
 
     function renderResultados() {
+      const total = state.preguntas.length;
       const aciertos = state.respuestas.filter((r, i) => r === state.preguntas[i].correcta).length;
+      const porcentaje = ((aciertos / total) * 100).toFixed(2);
+
       document.getElementById("app").innerHTML = `
         <h2>Resultados</h2>
-        <p>Aciertos: ${aciertos} / ${state.preguntas.length}</p>
+        <p>Usuario: <strong>${state.user}</strong></p>
+        <p>Aciertos: ${aciertos} / ${total}</p>
+        <p>Porcentaje: <strong>${porcentaje}%</strong></p>
+        <p>Nota (sobre 10): <strong>${(aciertos * 10 / total).toFixed(2)}</strong></p>
+
         <button onclick="location.reload()">Reiniciar</button>
       `;
     }
