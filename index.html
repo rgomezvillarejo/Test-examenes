@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>Test Interactivo</title>
+
+  <!-- CHART.JS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     :root {
@@ -64,7 +63,6 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      position: relative;
       cursor: pointer;
     }
 
@@ -304,17 +302,19 @@
     }
 
     /* ---------------------------------------------------
-       SISTEMA DE PROGRESO Y ESTADÍSTICAS
+       SISTEMA DE ESTADÍSTICAS POR USUARIO
     --------------------------------------------------- */
 
     function guardarResultadoTest(resultado) {
-      const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+      const clave = "historialTests_" + state.user;
+      const historial = JSON.parse(localStorage.getItem(clave) || "[]");
       historial.push(resultado);
-      localStorage.setItem("historialTests", JSON.stringify(historial));
+      localStorage.setItem(clave, JSON.stringify(historial));
     }
 
     function actualizarEstadisticasPreguntas() {
-      let stats = JSON.parse(localStorage.getItem("estadisticasPreguntas") || "{}");
+      const clave = "estadisticasPreguntas_" + state.user;
+      let stats = JSON.parse(localStorage.getItem(clave) || "{}");
 
       state.preguntas.forEach((p, i) => {
         const id = p.pregunta;
@@ -332,18 +332,16 @@
         }
       });
 
-      localStorage.setItem("estadisticasPreguntas", JSON.stringify(stats));
+      localStorage.setItem(clave, JSON.stringify(stats));
     }
 
-
-
     /* ---------------------------------------------------
-       PANTALLA DE ESTADÍSTICAS
+       PANTALLA PRINCIPAL DE ESTADÍSTICAS
     --------------------------------------------------- */
 
     function mostrarPantallaEstadisticas() {
       document.getElementById("app").innerHTML = `
-        <h2>Estadísticas del usuario</h2>
+        <h2>Estadísticas de ${state.user}</h2>
 
         <div class="opcion" onclick="pantallaEvolucionDesempeno()">
           📈 Evolución del desempeño
@@ -358,73 +356,86 @@
         </div>
 
         <button onclick="render()">Volver</button>
+
+        <button style="background:#b30000;margin-top:10px" onclick="resetearEstadisticas()">
+          Resetear estadísticas
+        </button>
       `;
     }
 
+    function resetearEstadisticas() {
+      const ok = confirm("¿Seguro que quieres borrar TODAS tus estadísticas? Esta acción no se puede deshacer.");
+
+      if (!ok) return;
+
+      localStorage.removeItem("historialTests_" + state.user);
+      localStorage.removeItem("estadisticasPreguntas_" + state.user);
+
+      alert("Estadísticas del usuario " + state.user + " borradas correctamente.");
+
+      mostrarPantallaEstadisticas();
+    }
+
     /* ---------------------------------------------------
-       A) EVOLUCIÓN DEL DESEMPEÑO
+       A) EVOLUCIÓN DEL DESEMPEÑO (CHART.JS)
     --------------------------------------------------- */
 
- function pantallaEvolucionDesempeno() {
-  const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+    function pantallaEvolucionDesempeno() {
+      const clave = "historialTests_" + state.user;
+      const historial = JSON.parse(localStorage.getItem(clave) || "[]");
 
-  if (historial.length === 0) {
-    document.getElementById("app").innerHTML = `
-      <h2>Evolución del desempeño</h2>
-      <p>No hay datos todavía.</p>
-      <button onclick="mostrarPantallaEstadisticas()">Volver</button>
-    `;
-    return;
-  }
-
-  // Contenedor con canvas
-  document.getElementById("app").innerHTML = `
-    <h2>Evolución del desempeño</h2>
-    <canvas id="graficaDesempeno" width="400" height="300"></canvas>
-    <button onclick="mostrarPantallaEstadisticas()">Volver</button>
-  `;
-
-  // Datos para la gráfica
-  const labels = historial.map(t => new Date(t.fecha).toLocaleDateString());
-  const datos = historial.map(t => Number(t.porcentaje));
-
-  // Crear gráfica
-  const ctx = document.getElementById("graficaDesempeno").getContext("2d");
-
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Porcentaje de aciertos',
-        data: datos,
-        backgroundColor: 'rgba(74, 144, 226, 0.6)',
-        borderColor: 'rgba(74, 144, 226, 1)',
-        borderWidth: 2
-      }]
-    },
-    options: {
-      indexAxis: 'y', // BARRAS HORIZONTALES
-      scales: {
-        x: {
-          min: 0,
-          max: 100,
-          ticks: { stepSize: 10 }
-        }
+      if (historial.length === 0) {
+        document.getElementById("app").innerHTML = `
+          <h2>Evolución del desempeño</h2>
+          <p>No hay datos todavía.</p>
+          <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+        `;
+        return;
       }
+
+      document.getElementById("app").innerHTML = `
+        <h2>Evolución del desempeño</h2>
+        <canvas id="graficaDesempeno" width="400" height="300"></canvas>
+        <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+      `;
+
+      const labels = historial.map(t => new Date(t.fecha).toLocaleDateString());
+      const datos = historial.map(t => Number(t.porcentaje));
+
+      const ctx = document.getElementById("graficaDesempeno").getContext("2d");
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Porcentaje de aciertos',
+            data: datos,
+            backgroundColor: 'rgba(74, 144, 226, 0.6)',
+            borderColor: 'rgba(74, 144, 226, 1)',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          scales: {
+            x: {
+              min: 0,
+              max: 100,
+              ticks: { stepSize: 10 }
+            }
+          }
+        }
+      });
     }
-  });
-}
-
-
-
 
     /* ---------------------------------------------------
        B) HISTORIAL DE TESTS
     --------------------------------------------------- */
 
     function pantallaHistorialTests() {
-      const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+      const clave = "historialTests_" + state.user;
+      const historial = JSON.parse(localStorage.getItem(clave) || "[]");
 
       if (historial.length === 0) {
         document.getElementById("app").innerHTML = `
@@ -456,7 +467,8 @@
     --------------------------------------------------- */
 
     function pantallaPreguntasFalladas() {
-      const stats = JSON.parse(localStorage.getItem("estadisticasPreguntas") || "{}");
+      const clave = "estadisticasPreguntas_" + state.user;
+      const stats = JSON.parse(localStorage.getItem(clave) || "{}");
 
       const ordenadas = Object.entries(stats)
         .sort((a, b) => b[1].fallos - a[1].fallos);
@@ -485,6 +497,7 @@
         <button onclick="mostrarPantallaEstadisticas()">Volver</button>
       `;
     }
+
 
     /* ---------------------------------------------------
        RESULTADOS
@@ -553,3 +566,5 @@
 
 </body>
 </html>
+
+
