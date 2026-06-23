@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -361,29 +365,59 @@
        A) EVOLUCIÓN DEL DESEMPEÑO
     --------------------------------------------------- */
 
-    function pantallaEvolucionDesempeno() {
-      const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+ function pantallaEvolucionDesempeno() {
+  const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
 
-      if (historial.length === 0) {
-        document.getElementById("app").innerHTML = `
-          <h2>Evolución del desempeño</h2>
-          <p>No hay datos todavía.</p>
-          <button onclick="mostrarPantallaEstadisticas()">Volver</button>
-        `;
-        return;
+  if (historial.length === 0) {
+    document.getElementById("app").innerHTML = `
+      <h2>Evolución del desempeño</h2>
+      <p>No hay datos todavía.</p>
+      <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+    `;
+    return;
+  }
+
+  // Contenedor con canvas
+  document.getElementById("app").innerHTML = `
+    <h2>Evolución del desempeño</h2>
+    <canvas id="graficaDesempeno" width="400" height="300"></canvas>
+    <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+  `;
+
+  // Datos para la gráfica
+  const labels = historial.map(t => new Date(t.fecha).toLocaleDateString());
+  const datos = historial.map(t => Number(t.porcentaje));
+
+  // Crear gráfica
+  const ctx = document.getElementById("graficaDesempeno").getContext("2d");
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Porcentaje de aciertos',
+        data: datos,
+        backgroundColor: 'rgba(74, 144, 226, 0.6)',
+        borderColor: 'rgba(74, 144, 226, 1)',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      indexAxis: 'y', // BARRAS HORIZONTALES
+      scales: {
+        x: {
+          min: 0,
+          max: 100,
+          ticks: { stepSize: 10 }
+        }
       }
-
-      let grafica = historial.map(t => {
-        const barras = "█".repeat(Math.round(t.porcentaje / 5));
-        return `${new Date(t.fecha).toLocaleDateString()} — ${t.porcentaje}%<br>${barras}`;
-      }).join("<br><br>");
-
-      document.getElementById("app").innerHTML = `
-        <h2>Evolución del desempeño</h2>
-        <p>${grafica}</p>
-        <button onclick="mostrarPantallaEstadisticas()">Volver</button>
-      `;
     }
+  });
+}
+
+
+
 
     /* ---------------------------------------------------
        B) HISTORIAL DE TESTS
