@@ -203,28 +203,60 @@
       renderConfigPreguntas();
     }
 
-    function renderConfigPreguntas() {
-      if (state.modo === "estudio") {
-        document.getElementById("app").innerHTML = `
-          <h2>Modo Estudio</h2>
-          <p>Total preguntas: ${state.totalPreguntasDisponibles}</p>
-          <button onclick="iniciarEstudio()">Comenzar</button>
-        `;
-      } else {
-        document.getElementById("app").innerHTML = `
-          <h2>Modo Examen</h2>
-          <p>Total disponibles: ${state.totalPreguntasDisponibles}</p>
-          <input id="numPreg" type="number" min="1" max="${state.totalPreguntasDisponibles}" placeholder="Número de preguntas">
-          <button onclick="iniciarExamen()">Comenzar</button>
-        `;
-      }
-    }
+function renderConfigPreguntas() {
+  // -------------------------
+  // CONFIGURACIÓN MODO ESTUDIO
+  // -------------------------
+  if (state.modo === "estudio") {
+    document.getElementById("app").innerHTML = `
+      <h2>Modo Estudio</h2>
+      <p>Total preguntas: ${state.totalPreguntasDisponibles}</p>
 
-    function iniciarEstudio() {
-      state.actual = 0;
-      state.mostrarCorreccion = false;
-      render();
-    }
+      <div class="opcion">
+        <input type="radio" name="tipoEstudio" id="lineal" checked>
+        <label for="lineal">Recorrido lineal (orden original)</label>
+      </div>
+
+      <div class="opcion">
+        <input type="radio" name="tipoEstudio" id="aleatorio">
+        <label for="aleatorio">Recorrido aleatorio</label>
+      </div>
+
+      <button onclick="iniciarEstudio()">Comenzar</button>
+    `;
+    return;
+  }
+
+  // -------------------------
+  // CONFIGURACIÓN MODO EXAMEN
+  // -------------------------
+  document.getElementById("app").innerHTML = `
+    <h2>Modo Examen</h2>
+    <p>Total disponibles: ${state.totalPreguntasDisponibles}</p>
+
+    <input id="numPreg" type="number" 
+           min="1" 
+           max="${state.totalPreguntasDisponibles}" 
+           placeholder="Número de preguntas">
+
+    <button onclick="iniciarExamen()">Comenzar</button>
+  `;
+}
+
+
+
+function iniciarEstudio() {
+  const esAleatorio = document.getElementById("aleatorio").checked;
+  state.estudioModoAleatorio = esAleatorio;
+
+  if (esAleatorio) {
+    state.preguntas = state.preguntas.sort(() => Math.random() - 0.5);
+  }
+
+  state.actual = 0;
+  state.mostrarCorreccion = false;
+  render();
+}
 
     function iniciarExamen() {
       const n = parseInt(document.getElementById("numPreg").value);
