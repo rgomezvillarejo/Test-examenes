@@ -114,93 +114,72 @@
       mostrarCorreccion: false
     };
 
-    // -----------------------------
-    // MEZCLAR OPCIONES
-    // -----------------------------
     function mezclarOpciones(p) {
-      const arr = p.opciones.map((texto, i) => ({ texto, indiceOriginal: i }));
-
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-
-      p.opcionesMezcladas = arr;
-      p.correctaMezclada = arr.findIndex(o => o.indiceOriginal === p.correcta);
+      p.opciones = [...p.opciones].sort(() => Math.random() - 0.5);
     }
 
-    // -----------------------------
-    // CARGAR CATALOGO
-    // -----------------------------
     async function cargarCatalogo() {
-      try {
-        const res = await fetch("./catalogo.json?nocache=" + Date.now());
-        state.catalogo = await res.json();
-      } catch (e) {
-        document.getElementById("app").innerHTML = "<h2>Error cargando catalogo.json</h2>";
-      }
+      const res = await fetch("./catalogo.json?nocache=" + Date.now());
+      state.catalogo = await res.json();
+      render();
     }
 
-    // -----------------------------
-    // PANTALLA 1: NOMBRE
-    // -----------------------------
     function viewNombre() {
       return `
-        <h2>Bienvenido</h2>
-        <label>Tu nombre:</label>
-        <input id="user" type="text" placeholder="Escribe tu nombre">
+        <h2>Introduce tu nombre</h2>
+        <input id="nombre" type="text" placeholder="Tu nombre">
         <button onclick="guardarNombre()">Continuar</button>
       `;
     }
 
     function guardarNombre() {
-      const nombre = document.getElementById("user").value.trim();
-      state.user = nombre || "Anónimo";
-      renderSeleccionJuegos();
+      const nombre = document.getElementById("nombre").value.trim();
+      if (!nombre) return;
+      state.user = nombre;
+      render();
     }
 
-    // -----------------------------
-    // PANTALLA 2: SELECCIÓN DE JUEGOS
-    // -----------------------------
     function viewSeleccionJuegos() {
       return `
-        <h2>Selecciona los juegos</h2>
-        ${state.catalogo.map(j => `
-          <label class="opcion">
-            <input type="checkbox" value="${j.archivo}">
-            ${j.nombre}
-          </label>
+        <h2>Hola ${state.user}</h2>
+        <h3>Selecciona los juegos</h3>
+        ${state.catalogo.map((j, i) => `
+          <div class="opcion">
+            <input type="checkbox" id="j${i}" value="${j.archivo}">
+            <label for="j${i}">${j.nombre}</label>
+          </div>
         `).join("")}
         <button onclick="guardarJuegos()">Continuar</button>
       `;
     }
 
     function guardarJuegos() {
-      const checks = [...document.querySelectorAll("input[type='checkbox']:checked")];
-      if (checks.length === 0) return alert("Debes seleccionar al menos un juego.");
-      state.juegosSeleccionados = checks.map(c => c.value);
-      renderSeleccionModo();
+      state.juegosSeleccionados = [];
+      state.catalogo.forEach((j, i) => {
+        const chk = document.getElementById("j" + i);
+        if (chk.checked) state.juegosSeleccionados.push(chk.value);
+      });
+      if (state.juegosSeleccionados.length === 0) return;
+      render();
     }
 
-    // -----------------------------
-    // PANTALLA 3: SELECCIÓN DE MODO
-    // -----------------------------
-    function viewSeleccionModo() {
+    function viewModo() {
       return `
         <h2>Selecciona el modo</h2>
-        <button onclick="configurarModo('examen')">Modo Examen</button>
-        <button onclick="configurarModo('estudio')">Modo Estudio</button>
+        <button onclick="seleccionarModo('estudio')">Modo Estudio</button>
+        <button onclick="seleccionarModo('examen')">Modo Examen</button>
       `;
     }
 
-    function configurarModo(modo) {
-      state.modo = modo;
-      cargarPreguntasParaConfig();
+    function seleccionarModo(m) {
+      state.modo = m;
+      if (m === "estudio") {
+        cargarPreguntasParaConfig();
+      } else {
+        cargarPreguntasParaConfig();
+      }
     }
 
-    // -----------------------------
-    // CARGAR TODAS LAS PREGUNTAS
-    // -----------------------------
     async function cargarPreguntasParaConfig() {
       state.preguntas = [];
 
@@ -215,7 +194,121 @@
       renderConfigPreguntas();
     }
 
+    function renderConfigPreguntas() {
+      if (state.modo === "estudio") {
+        document.getElementById("app").innerHTML = `
+          <h2>Modo Estudio</h2>
+          <p>Total preguntas: ${state.totalPreguntasDisponibles}</p>
+          <button onclick="iniciarEstudio()">Comenzar</button>
+        `;
+      } else {
+        document.getElementById("app").innerHTML = `
+          <h2>Modo Examen</h2>
+          <p>Total disponibles: ${state.totalPreguntasDisponibles}</p>
+          <input id="numPreg" type="number" min="1" max="${state.totalPreguntasDisponibles}" placeholder="Número de preguntas">
+          <button onclick="iniciarExamen()">Comenzar</button>
+        `;
+      }
+    }
 
+    function iniciarEstudio() {
+      state.actual = 0;
+      state.mostrarCorreccion = false;
+      render();
+    }
 
+    function iniciarExamen() {
+      const n = parseInt(document.getElementById("numPreg").value);
+      if (!n || n < 1 || n > state.totalPreguntasDisponibles) return;
+      state.numPreguntasElegidas = n;
+      state.preguntas = state.preguntas.sort(() => Math.random() - 0.5).slice(0, n);
+      state.actual = 0;
+      state.mostrarCorreccion = false;
+      render();
+    }
 
-      
+    function viewPregunta() {
+      const p = state.preguntas[state.actual];
+      return `
+        <h2>Pregunta ${state.actual + 1} / ${state.preguntas.length}</h2>
+        <p>${p.pregunta}</p>
+        ${p.opciones.map((o, i) => `
+          <div class="opcion" onclick="responder(${i})">
+            ${o}
+          </div>
+        `).join("")}
+      `;
+    }
+
+    function responder(i) {
+      const p = state.preguntas[state.actual];
+      state.respuestas[state.actual] = i;
+      state.mostrarCorreccion = true;
+      render();
+    }
+
+    function viewCorreccion() {
+      const p = state.preguntas[state.actual];
+      return `
+        <h2>Corrección</h2>
+        <p>${p.pregunta}</p>
+        ${p.opciones.map((o, i) => `
+          <div class="opcion ${i === p.correcta ? 'correcta' : (i === state.respuestas[state.actual] ? 'fallada' : '')}">
+            ${o}
+          </div>
+        `).join("")}
+        <button onclick="siguiente()">Siguiente</button>
+      `;
+    }
+
+    function siguiente() {
+      state.actual++;
+      state.mostrarCorreccion = false;
+      if (state.actual >= state.preguntas.length) {
+        renderResultados();
+      } else {
+        render();
+      }
+    }
+
+    function renderResultados() {
+      const aciertos = state.respuestas.filter((r, i) => r === state.preguntas[i].correcta).length;
+      document.getElementById("app").innerHTML = `
+        <h2>Resultados</h2>
+        <p>Aciertos: ${aciertos} / ${state.preguntas.length}</p>
+        <button onclick="location.reload()">Reiniciar</button>
+      `;
+    }
+
+    function render() {
+      if (!state.user) {
+        document.getElementById("app").innerHTML = viewNombre();
+        return;
+      }
+
+      if (state.juegosSeleccionados.length === 0) {
+        document.getElementById("app").innerHTML = viewSeleccionJuegos();
+        return;
+      }
+
+      if (!state.modo) {
+        document.getElementById("app").innerHTML = viewModo();
+        return;
+      }
+
+      if (state.mostrarCorreccion) {
+        document.getElementById("app").innerHTML = viewCorreccion();
+        return;
+      }
+
+      if (state.preguntas.length > 0 && state.actual < state.preguntas.length) {
+        document.getElementById("app").innerHTML = viewPregunta();
+        return;
+      }
+    }
+
+    cargarCatalogo();
+  </script>
+
+</body>
+</html>
