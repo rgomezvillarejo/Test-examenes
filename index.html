@@ -61,6 +61,7 @@
       align-items: center;
       gap: 10px;
       position: relative;
+      cursor: pointer;
     }
 
     .opcion.correcta {
@@ -142,13 +143,19 @@
       return `
         <h2>Hola ${state.user}</h2>
         <h3>Selecciona los juegos</h3>
+
         ${state.catalogo.map((j, i) => `
           <div class="opcion">
             <input type="checkbox" id="j${i}" value="${j.archivo}">
             <label for="j${i}">${j.nombre}</label>
           </div>
         `).join("")}
+
         <button onclick="guardarJuegos()">Continuar</button>
+
+        <button style="background:#666;margin-top:10px" onclick="mostrarPantallaEstadisticas()">
+          Ver estadísticas
+        </button>
       `;
     }
 
@@ -262,7 +269,6 @@
     }
 
     function responder(i) {
-      const p = state.preguntas[state.actual];
       state.respuestas[state.actual] = i;
       state.mostrarCorreccion = true;
       render();
@@ -307,7 +313,7 @@
       let stats = JSON.parse(localStorage.getItem("estadisticasPreguntas") || "{}");
 
       state.preguntas.forEach((p, i) => {
-        const id = p.pregunta; // clave única basada en el enunciado
+        const id = p.pregunta;
 
         if (!stats[id]) {
           stats[id] = { veces: 0, aciertos: 0, fallos: 0 };
@@ -323,6 +329,127 @@
       });
 
       localStorage.setItem("estadisticasPreguntas", JSON.stringify(stats));
+    }
+
+
+
+    /* ---------------------------------------------------
+       PANTALLA DE ESTADÍSTICAS
+    --------------------------------------------------- */
+
+    function mostrarPantallaEstadisticas() {
+      document.getElementById("app").innerHTML = `
+        <h2>Estadísticas del usuario</h2>
+
+        <div class="opcion" onclick="pantallaEvolucionDesempeno()">
+          📈 Evolución del desempeño
+        </div>
+
+        <div class="opcion" onclick="pantallaHistorialTests()">
+          📋 Historial de tests realizados
+        </div>
+
+        <div class="opcion" onclick="pantallaPreguntasFalladas()">
+          ❌ Preguntas más falladas
+        </div>
+
+        <button onclick="render()">Volver</button>
+      `;
+    }
+
+    /* ---------------------------------------------------
+       A) EVOLUCIÓN DEL DESEMPEÑO
+    --------------------------------------------------- */
+
+    function pantallaEvolucionDesempeno() {
+      const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+
+      if (historial.length === 0) {
+        document.getElementById("app").innerHTML = `
+          <h2>Evolución del desempeño</h2>
+          <p>No hay datos todavía.</p>
+          <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+        `;
+        return;
+      }
+
+      let grafica = historial.map(t => {
+        const barras = "█".repeat(Math.round(t.porcentaje / 5));
+        return `${new Date(t.fecha).toLocaleDateString()} — ${t.porcentaje}%<br>${barras}`;
+      }).join("<br><br>");
+
+      document.getElementById("app").innerHTML = `
+        <h2>Evolución del desempeño</h2>
+        <p>${grafica}</p>
+        <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+      `;
+    }
+
+    /* ---------------------------------------------------
+       B) HISTORIAL DE TESTS
+    --------------------------------------------------- */
+
+    function pantallaHistorialTests() {
+      const historial = JSON.parse(localStorage.getItem("historialTests") || "[]");
+
+      if (historial.length === 0) {
+        document.getElementById("app").innerHTML = `
+          <h2>Historial de tests</h2>
+          <p>No hay tests realizados.</p>
+          <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+        `;
+        return;
+      }
+
+      const lista = historial.map(t => `
+        <div class="opcion">
+          📅 ${new Date(t.fecha).toLocaleString()}<br>
+          Modo: ${t.modo}<br>
+          Aciertos: ${t.aciertos}/${t.total}<br>
+          Porcentaje: ${t.porcentaje}%
+        </div>
+      `).join("");
+
+      document.getElementById("app").innerHTML = `
+        <h2>Historial de tests</h2>
+        ${lista}
+        <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+      `;
+    }
+
+    /* ---------------------------------------------------
+       C) PREGUNTAS MÁS FALLADAS
+    --------------------------------------------------- */
+
+    function pantallaPreguntasFalladas() {
+      const stats = JSON.parse(localStorage.getItem("estadisticasPreguntas") || "{}");
+
+      const ordenadas = Object.entries(stats)
+        .sort((a, b) => b[1].fallos - a[1].fallos);
+
+      if (ordenadas.length === 0) {
+        document.getElementById("app").innerHTML = `
+          <h2>Preguntas más falladas</h2>
+          <p>No hay datos todavía.</p>
+          <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+        `;
+        return;
+      }
+
+      const lista = ordenadas.map(([pregunta, datos]) => `
+        <div class="opcion">
+          <strong>${pregunta}</strong><br>
+          Fallos: ${datos.fallos}<br>
+          Aciertos: ${datos.aciertos}<br>
+          Veces mostrada: ${datos.veces}
+        </div>
+      `).join("");
+
+      document.getElementById("app").innerHTML = `
+        <h2>Preguntas más falladas</h2>
+        ${lista}
+        <button onclick="mostrarPantallaEstadisticas()">Volver</button>
+      `;
     }
 
     /* ---------------------------------------------------
