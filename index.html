@@ -115,7 +115,14 @@
     };
 
     function mezclarOpciones(p) {
-      p.opciones = [...p.opciones].sort(() => Math.random() - 0.5);
+      // 1. Guardar el texto de la opción correcta antes de mezclar
+	const textoCorrecto = p.opciones[p.correcta];
+
+	// 2. Mezclar las opciones
+	p.opciones = [...p.opciones].sort(() => Math.random() - 0.5);
+
+	// 3. Recalcular el índice de la opción correcta en el nuevo array
+	p.correcta = p.opciones.findIndex(o => o === textoCorrecto);  
     }
 
     async function cargarCatalogo() {
